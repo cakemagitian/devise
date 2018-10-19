@@ -88,6 +88,13 @@ class DatabaseAuthenticatableTest < ActiveSupport::TestCase
     assert_equal( {'strip_whitespace' => 'strip_whitespace_val', 'do_not_strip_whitespace' => ' do_not_strip_whitespace_val '}, conditions )
   end
 
+  test 'param filter should not add keys to filtered hash' do
+    conditions = { 'present' => 'present_val' }
+    conditions.default = ''
+    conditions = Devise::ParameterFilter.new(['not_present'], []).filter(conditions)
+    assert_equal({ 'present' => 'present_val' }, conditions)
+  end
+
   test 'should respond to password and password confirmation' do
     user = new_user
     assert user.respond_to?(:password)
@@ -256,6 +263,26 @@ class DatabaseAuthenticatableTest < ActiveSupport::TestCase
         assert user.update(password: 'newpass', password_confirmation: 'newpass')
       end
       assert_match user.email, ActionMailer::Base.deliveries.last.body.encoded
+    end
+  end
+
+  test 'should not notify email on password change even when configured if skip_password_change_notification! is invoked' do
+    swap Devise, send_password_change_notification: true do
+      user = create_user
+      user.skip_password_change_notification!
+      assert_email_not_sent do
+        assert user.update(password: 'newpass', password_confirmation: 'newpass')
+      end
+    end
+  end
+
+  test 'should not notify email on email change even when configured if skip_email_changed_notification! is invoked' do
+    swap Devise, send_email_changed_notification: true do
+      user = create_user
+      user.skip_email_changed_notification!
+      assert_email_not_sent do
+        assert user.update(email: 'new-email@example.com')
+      end
     end
   end
 
